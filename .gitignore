@@ -17,16 +17,7 @@ Project Backups/
 
 # Ignore IDE-specific files
 .vs/
-*.atsuo
-*.atsln
-*.cproj
-*.componentinfo.xml
-*.pdsprj
 *.workspace
-
-# Ignore generated Makefiles
-Makefile
-makedep.mk
 
 # Ignore log files
 *.log
