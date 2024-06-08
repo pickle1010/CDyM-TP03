@@ -1,6 +1,6 @@
 #include "dht11.h"
 
-volatile tDHT11_state DHT11_state = END;
+volatile tDHT11_comState DHT11_comState = ENDED;
 volatile uint8_t DHT11_data[5];
 
 static volatile uint16_t pulse_us = 0;
@@ -14,7 +14,7 @@ void DHT11_start()
 	TCCR1A = 0x00; // Modo Normal
 	TCCR1B = (1 << CS11); // Prescale 8, ICSE1 = 0 (LOW)
 	
-	DHT11_state = START;
+	DHT11_comState = STARTED;
 	pulse_counter = 0;
 	for (int i = 0; i < 5; i++)
 	{
@@ -46,16 +46,16 @@ ISR (TIMER1_CAPT_vect)
 		if (pulse_counter >= 83)
 		{
 			// Fin de la comunicacion
-			DHT11_state = END;
+			DHT11_comState = ENDED;
 			TIMSK1 = (0 << ICIE1);
 		}
 		else if (pulse_counter > 3 && pulse_counter % 2 == 0)
 		{
 			if( (pulse_counter - 4) % 16 == 0 )
 			{
-				DHT11_state++;
+				DHT11_comState++;
 			}
-			data_sel = DHT11_state - INT_RH;
+			data_sel = DHT11_comState - INT_RH;
 			DHT11_data[data_sel] = DHT11_data[data_sel] << 1;
 			if(pulse_us >= 70)
 			{

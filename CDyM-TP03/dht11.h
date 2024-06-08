@@ -6,8 +6,8 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-typedef enum {START, INT_RH, DEC_RH, INT_T, DEC_T, CHECKSUM, END} tDHT11_state;
-extern volatile tDHT11_state DHT11_state;
+typedef enum {STARTED, INT_RH, DEC_RH, INT_T, DEC_T, CHECKSUM, ENDED} tDHT11_comState;
+extern volatile tDHT11_comState DHT11_comState;
 extern volatile uint8_t DHT11_data[5];
 
 void DHT11_start();

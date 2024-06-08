@@ -20,7 +20,7 @@ int main(void)
 	DHT11_start();
     while (1)
     {
-		if(DHT11_state == END)
+		if(DHT11_comState == ENDED)
 		{
 			intRH = DHT11_data[0];
 			decRH = DHT11_data[1];
