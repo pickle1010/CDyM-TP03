@@ -27,7 +27,7 @@ void DHT11_start()
 	_delay_ms(18);
 	DDRB &= ~(1<<PORTB0);
 	
-	TIMSK1 = (1 << ICIE1); // Habilitar interrupción de IC
+	TIMSK1 = (1 << ICIE1); // Habilitar interrupcion de IC
 	sei();
 }
 
