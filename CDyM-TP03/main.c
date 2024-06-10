@@ -8,8 +8,17 @@
 #include "dht11.h"
 #include "serialPort.h"
 
+void TWI_Init(void);
+void TWI_Start(void);
+void TWI_WriteAddress(uint8_t address);
+void TWI_WriteByte(uint8_t data);
+uint8_t TWI_ReadByte_ACK(void);
+uint8_t TWI_ReadByte_NACK(void);
+void TWI_Stop(void);
+
 void TIMER0_init();
 
+#define DS3232_ADDRESS 0x68  // Dirección I2C del DS3232
 #define BR9600 (0x67)	// 0x67=103 configura BAUDRATE=9600@16MHz
 
 char log_msg[] = "TEMP: __ °C HUM: __% FECHA: __/__/__ HORA: __:__:__\r\n";
@@ -29,6 +38,7 @@ int main(void)
 	uint8_t intRH = 0;
 	uint8_t intT = 0;
 	
+	TWI_Init();
 	SerialPort_Init(BR9600); 			// Inicializo formato 8N1 y BAUDRATE = 9600bps
 	SerialPort_TX_Enable();				// Activo el Transmisor del Puerto Serie
 	SerialPort_RX_Enable();				// Activo el Receptor del Puerto Serie
@@ -52,9 +62,36 @@ int main(void)
 				DHT11_update();
 			}
 			else
-			{
+			{				
 				read_dht11 = 0;
 				if(!STOP){
+					//segundos
+					// Leer el registro de segundos del DS3232 (dirección 0x00)
+					TWI_Start();
+					TWI_WriteAddress(DS3232_ADDRESS << 1);  // Dirección + bit de escritura (0)
+					TWI_WriteByte(0x00);  // Dirección del registro de segundos
+					TWI_Start();
+					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
+					uint8_t seconds = TWI_ReadByte_NACK();
+					
+					//minutos
+					TWI_WriteByte(0x01);  // Dirección del registro de segundos
+					TWI_Start();
+					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
+					uint8_t minutes = TWI_ReadByte_NACK();
+					
+					//horas
+					TWI_WriteByte(0x02);  // Dirección del registro de segundos
+					TWI_Start();
+					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
+					uint8_t hours = TWI_ReadByte_NACK();
+					
+					TWI_Stop();
+					
+					seconds = (seconds >> 4) * 10 + (seconds & 0x0F);
+					minutes = (minutes >> 4) * 10 + (minutes & 0x0F);
+					hours = (hours >> 4) * 10 + (hours & 0x0F);
+
 					intRH = DHT11_data[0];
 					intT = DHT11_data[2];
 					
@@ -62,6 +99,13 @@ int main(void)
 					log_msg[7] = '0' + intT % 10;
 					log_msg[17] = '0' + intRH / 10;
 					log_msg[18] = '0' + intRH % 10;
+					
+					log_msg[43] = '0' + hours / 10;
+					log_msg[44] = '0' + hours % 10;
+					log_msg[46] = '0' + minutes / 10;
+					log_msg[47] = '0' + minutes % 10;
+					log_msg[49] = '0' + seconds / 10;
+					log_msg[50] = '0' + seconds % 10;
 					
 					SerialPort_TX_Interrupt_Enable();	
 				}
@@ -117,3 +161,43 @@ ISR(USART_UDRE_vect){
 		PRINT_done = 1;
 	}
 } 
+
+void TWI_Init(void) {
+	TWSR = 0x00;  // Prescaler value = 1
+	TWBR = 152;  // Set bit rate register for 50 kHz SCL frequency
+	TWCR = (1 << TWEN);  // Habilitar TWI
+}
+
+void TWI_Start(void) {
+	TWCR = (1 << TWSTA) | (1 << TWEN) | (1 << TWINT);
+	while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete el inicio
+}
+
+void TWI_WriteAddress(uint8_t address) {
+	TWDR = address;
+	TWCR = (1 << TWEN) | (1 << TWINT);
+	while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete la transmisión
+}
+
+void TWI_WriteByte(uint8_t data) {
+	TWDR = data;
+	TWCR = (1 << TWEN) | (1 << TWINT);
+	while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete la transmisión
+}
+
+uint8_t TWI_ReadByte_ACK(void) {
+	TWCR = (1 << TWEN) | (1 << TWINT) | (1 << TWEA);  // Habilitar ACK
+	while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete la recepción
+	return TWDR;
+}
+
+uint8_t TWI_ReadByte_NACK(void) {
+	TWCR = (1 << TWEN) | (1 << TWINT);  // Deshabilitar ACK
+	while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete la recepción
+	return TWDR;
+}
+
+void TWI_Stop(void) {
+	TWCR = (1 << TWSTO) | (1 << TWEN) | (1 << TWINT);
+	while (TWCR & (1 << TWSTO));  // Esperar hasta que se complete la parada
+}
