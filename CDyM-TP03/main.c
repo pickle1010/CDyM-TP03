@@ -21,7 +21,10 @@ void TIMER0_init();
 #define DS3232_ADDRESS 0x68  // Dirección I2C del DS3232
 #define BR9600 (0x67)	// 0x67=103 configura BAUDRATE=9600@16MHz
 
+char* msg;
 char log_msg[] = "TEMP: __ °C HUM: __% FECHA: __/__/__ HORA: __:__:__\r\n";
+//char stop_msg[] = "Transmision interrumpida";
+//char start_msg[] = "Transmision reanudada";
 
 volatile uint16_t counter = 0;
 volatile uint8_t start_dht11= 0;
@@ -35,8 +38,17 @@ volatile uint8_t tx_index = 0;
 
 int main(void)
 {	
+	msg = log_msg;
 	uint8_t intRH = 0;
 	uint8_t intT = 0;
+	
+	uint8_t seconds = 0x00;
+	uint8_t minutes = (5 << 4) + 8;
+	uint8_t hours = (1 << 4) + 5;
+	
+	uint8_t day = (1 << 4) + 0;
+	uint8_t month = (0 << 4) + 6;
+	uint8_t year = (2 << 4) + 4;
 	
 	TWI_Init();
 	SerialPort_Init(BR9600); 			// Inicializo formato 8N1 y BAUDRATE = 9600bps
@@ -44,8 +56,22 @@ int main(void)
 	SerialPort_RX_Enable();				// Activo el Receptor del Puerto Serie
 	SerialPort_RX_Interrupt_Enable();	// Activo Interrupción de recepcion.
 	DHT11_init();
+	
+	TWI_Start();
+	TWI_WriteAddress(DS3232_ADDRESS << 1);  // Dirección + bit de escritura (0)
+	TWI_WriteByte(0x00);  // Dirección del registro de segundosuint8_t seconds = TWI_ReadByte_ACK();
+	TWI_WriteByte(seconds);
+	TWI_WriteByte(minutes);
+	TWI_WriteByte(hours);
+	TWI_WriteByte(0);
+	TWI_WriteByte(day);
+	TWI_WriteByte(month);
+	TWI_WriteByte(year);
+	TWI_Stop();
+	
 	TIMER0_init();						// Activo temporizacion para la lectura del sensor
 	sei();								// Activo la mascara global de interrupciones (Bit I del SREG en 1)
+	
 	
     while (1)
     {
@@ -65,45 +91,21 @@ int main(void)
 			{				
 				read_dht11 = 0;
 				if(!STOP){
-					//segundos
 					// Leer el registro de segundos del DS3232 (dirección 0x00)
 					TWI_Start();
 					TWI_WriteAddress(DS3232_ADDRESS << 1);  // Dirección + bit de escritura (0)
-					TWI_WriteByte(0x00);  // Dirección del registro de segundos
-					TWI_Start();
-					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
-					uint8_t seconds = TWI_ReadByte_NACK();
+					TWI_WriteByte(0x00);  // Dirección del registro de segundosuint8_t seconds = TWI_ReadByte_ACK();
+					TWI_Stop();
 					
-					//minutos
-					TWI_WriteByte(0x01);  // Dirección del registro de segundos
 					TWI_Start();
 					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
-					uint8_t minutes = TWI_ReadByte_NACK();
-					
-					//horas
-					TWI_WriteByte(0x02);  // Dirección del registro de segundos
-					TWI_Start();
-					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
-					uint8_t hours = TWI_ReadByte_NACK();
-
-					//dia
-					TWI_WriteByte(0x04);  // Dirección del registro de segundos
-					TWI_Start();
-					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
-					uint8_t day = TWI_ReadByte_NACK();
-					
-					//mes
-					TWI_WriteByte(0x05);  // Dirección del registro de segundos
-					TWI_Start();
-					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
-					uint8_t month = TWI_ReadByte_NACK();
-					
-					//year
-					TWI_WriteByte(0x06);  // Dirección del registro de segundos
-					TWI_Start();
-					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
-					uint8_t year = TWI_ReadByte_NACK();
-					
+					seconds = TWI_ReadByte_ACK();
+					minutes = TWI_ReadByte_ACK();
+					hours = TWI_ReadByte_ACK();
+					TWI_ReadByte_ACK();
+					day = TWI_ReadByte_ACK();
+					month = TWI_ReadByte_ACK();
+					year = TWI_ReadByte_NACK();
 					TWI_Stop();
 					
 					seconds = (seconds >> 4) * 10 + (seconds & 0x0F);
@@ -111,7 +113,7 @@ int main(void)
 					hours = (hours >> 4) * 10 + (hours & 0x0F);
 					day = (day >> 4) * 10 + (day & 0x0F);
 					month = (month >> 4) * 10 + (month & 0x0F);
-					year = (year >> 4) * 10 + (year & 0x0F);					
+					year = (year >> 4) * 10 + (year & 0x0F);
 
 					intRH = DHT11_data[0];
 					intT = DHT11_data[2];
@@ -179,9 +181,9 @@ ISR(USART_RX_vect)
 }
 
 ISR(USART_UDRE_vect){
-	if(log_msg[tx_index] != '\0')
+	if(msg[tx_index] != '\0')
 	{
-		SerialPort_Send_Data(log_msg[tx_index]);
+		SerialPort_Send_Data(msg[tx_index]);
 		tx_index++;
 	}
 	else
