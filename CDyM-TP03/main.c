@@ -85,12 +85,33 @@ int main(void)
 					TWI_Start();
 					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
 					uint8_t hours = TWI_ReadByte_NACK();
+
+					//dia
+					TWI_WriteByte(0x04);  // Dirección del registro de segundos
+					TWI_Start();
+					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
+					uint8_t day = TWI_ReadByte_NACK();
+					
+					//mes
+					TWI_WriteByte(0x05);  // Dirección del registro de segundos
+					TWI_Start();
+					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
+					uint8_t month = TWI_ReadByte_NACK();
+					
+					//year
+					TWI_WriteByte(0x06);  // Dirección del registro de segundos
+					TWI_Start();
+					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
+					uint8_t year = TWI_ReadByte_NACK();
 					
 					TWI_Stop();
 					
 					seconds = (seconds >> 4) * 10 + (seconds & 0x0F);
 					minutes = (minutes >> 4) * 10 + (minutes & 0x0F);
 					hours = (hours >> 4) * 10 + (hours & 0x0F);
+					day = (day >> 4) * 10 + (day & 0x0F);
+					month = (month >> 4) * 10 + (month & 0x0F);
+					year = (year >> 4) * 10 + (year & 0x0F);					
 
 					intRH = DHT11_data[0];
 					intT = DHT11_data[2];
@@ -106,6 +127,15 @@ int main(void)
 					log_msg[47] = '0' + minutes % 10;
 					log_msg[49] = '0' + seconds / 10;
 					log_msg[50] = '0' + seconds % 10;
+					
+					log_msg[28] = '0' +  day / 10;
+					log_msg[29] = '0' +  day % 10;
+
+					log_msg[31] = '0' + month / 10;
+					log_msg[32] = '0' + month % 10;
+
+					log_msg[34] = '0' + year / 10;
+					log_msg[35] = '0' + year % 10;
 					
 					SerialPort_TX_Interrupt_Enable();	
 				}
