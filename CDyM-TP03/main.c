@@ -33,10 +33,10 @@ int main(void)
 	SerialPort_TX_Enable();				// Activo el Transmisor del Puerto Serie
 	SerialPort_RX_Enable();				// Activo el Receptor del Puerto Serie
 	SerialPort_RX_Interrupt_Enable();	// Activo Interrupción de recepcion.
+	DHT11_init();
 	TIMER0_init();						// Activo temporizacion para la lectura del sensor
 	sei();								// Activo la mascara global de interrupciones (Bit I del SREG en 1)
 	
-	DHT11_start();
     while (1)
     {
 		if(start_dht11)
@@ -45,24 +45,27 @@ int main(void)
 			read_dht11 = 1;
 			DHT11_start();
 		}
-		if(read_dht11 && DHT11_comState == ENDED)
+		if(read_dht11)
 		{
-			intRH = DHT11_data[0];
-			intT = DHT11_data[2];
-			
-			log_msg[6] = '0' + intT / 10;
-			log_msg[7] = '0' + intT % 10;
-			log_msg[17] = '0' + intRH / 10;
-			log_msg[18] = '0' + intRH % 10;
-			
-			read_dht11 = 0;
-			PRINT_send = !STOP;
-		}
-		if(!STOP && PRINT_send && PRINT_done)
-		{
-			PRINT_send = 0;
-			SerialPort_TX_Interrupt_Enable();
-			PRINT_done = 0;
+			if(DHT11_comState != ENDED)
+			{
+				DHT11_update();
+			}
+			else
+			{
+				read_dht11 = 0;
+				if(!STOP){
+					intRH = DHT11_data[0];
+					intT = DHT11_data[2];
+					
+					log_msg[6] = '0' + intT / 10;
+					log_msg[7] = '0' + intT % 10;
+					log_msg[17] = '0' + intRH / 10;
+					log_msg[18] = '0' + intRH % 10;
+					
+					SerialPort_TX_Interrupt_Enable();	
+				}
+			}
 		}
     }
 }
