@@ -48,8 +48,9 @@ typedef struct
 } Time;
 
 char* msg;
+char* next_msg;
 char log_msg[] = "TEMP: __ °C HUM: __% FECHA: __/__/__ HORA: __:__:__\r\n";
-char stop_msg[] = "Transmision interrumpida\r\n";
+char stop_msg[] = "Transmision interrumpida. Presione 's' o 'S' para reanudarla\r\n";
 char start_msg[] = "Transmision reanudada\r\n";
 
 uint8_t temp;
@@ -118,22 +119,25 @@ int main(void)
 					temp = DHT11_data[2];
 					
 					sprintf(log_msg, "TEMP: %u °C HUM: %u%% FECHA: %02u/%02u/%02u HORA: %02u:%02u:%02u\r\n", temp, hum, date.day, date.month, date.year, time_var.hours, time_var.minutes, time_var.seconds);
-					SerialPort_TX_Interrupt_Enable();
-					//PRINT = 1;
-					//msg = log_msg;
+					//SerialPort_TX_Interrupt_Enable();
+					PRINT_send = 1;
+					next_msg = log_msg;
 				}
 			}
 		}
-		//if(PRINT)
-		//{
-			//PRINT = 0;
-			//SerialPort_TX_Interrupt_Enable();
-		//}
+		if(PRINT_send && PRINT_done)
+		{
+			PRINT_send = 0;
+			PRINT_done = 0;
+			msg = next_msg;
+			SerialPort_TX_Interrupt_Enable();
+		}
     }
 }
 
-void MAIN_init(){
-	msg = log_msg;
+void MAIN_init()
+{
+	next_msg = log_msg;
 	
 	hum = 0;
 	temp = 0;
@@ -171,14 +175,16 @@ void MAIN_init(){
 /********************************************************
 FUNCIÓN PARA CONVERTIR UN VALOR BINARIO A BCD
 ********************************************************/
-uint8_t bin_to_bcd(uint8_t val) {
+uint8_t bin_to_bcd(uint8_t val)
+{
 	return ((val / 10) << 4) | (val % 10);
 }
 
 /********************************************************
 FUNCIÓN PARA CONVERTIR UN VALOR BCD A BINARIO
 ********************************************************/
-uint8_t bcd_to_bin(uint8_t val) {
+uint8_t bcd_to_bin(uint8_t val)
+{
 	return ((val >> 4) * 10) + (val & 0x0F);
 }
 
@@ -186,7 +192,8 @@ uint8_t bcd_to_bin(uint8_t val) {
 CONFIGURAR TIMER PARA GENERAR UNA INTERRUPCION CADA 1 ms
 UTILIZANDO UNA FREQUENCIA PRESCALADA DE 250 kHz
 ********************************************************/
-void TIMER0_init(){
+void TIMER0_init()
+{
 	TCCR0A = (1<<WGM01);
 	TCCR0B = (1<<CS01) | (1<<CS00);
 	TIMSK0 = (1 << OCIE0A);
@@ -213,19 +220,20 @@ ISR(USART_RX_vect)
 	if(RX_Buffer == 's' || RX_Buffer ==  'S')
 	{
 		STOP = !STOP;
-		//if(STOP)
-		//{
-			//msg = stop_msg;	
-		//}
-		//else
-		//{
-			//msg = start_msg;	
-		//}
-		//PRINT = 1;
+		if(STOP)
+		{
+			next_msg = stop_msg;
+		}
+		else
+		{
+			next_msg = start_msg;
+		}
+		PRINT_send = 1;
 	}
 }
 
-ISR(USART_UDRE_vect){
+ISR(USART_UDRE_vect)
+{
 	if(msg[tx_index] != '\0')
 	{
 		SerialPort_Send_Data(msg[tx_index]);
