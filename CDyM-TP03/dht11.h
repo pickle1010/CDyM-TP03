@@ -1,7 +1,6 @@
 #ifndef _DHT11_H
 #define _DHT11_H
 
-#define F_CPU 16000000
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
