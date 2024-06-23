@@ -5,6 +5,7 @@
  * Author : Estanislao Carrer, Fernando Ramirez, Lisandro Martinez
  */ 
 
+#include <stdio.h>
 #include "dht11.h"
 #include "serialPort.h"
 
@@ -17,18 +18,43 @@ uint8_t TWI_ReadByte_NACK(void);
 void TWI_Stop(void);
 
 void TIMER0_init();
+uint8_t bin_to_bcd(uint8_t);
+uint8_t bcd_to_bin(uint8_t);
 
 #define DS3232_ADDRESS 0x68  // Dirección I2C del DS3232
 #define BR9600 (0x67)	// 0x67=103 configura BAUDRATE=9600@16MHz
 
+#define INITIAL_HOURS 15
+#define INITIAL_MINUTES 30
+#define INITIAL_SECONDS 00
+
+#define INITIAL_YEAR 24
+#define INITIAL_MONTH 6
+#define INITIAL_DAY 24
+
+typedef struct
+{
+	uint8_t year;
+	uint8_t month;
+	uint8_t day;
+} Date;
+
+typedef struct
+{
+	uint8_t hours;
+	uint8_t minutes;
+	uint8_t seconds;
+} Time;
+
 char* msg;
 char log_msg[] = "TEMP: __ °C HUM: __% FECHA: __/__/__ HORA: __:__:__\r\n";
-//char stop_msg[] = "Transmision interrumpida";
-//char start_msg[] = "Transmision reanudada";
+char stop_msg[] = "Transmision interrumpida\r\n";
+char start_msg[] = "Transmision reanudada\r\n";
 
 volatile uint16_t counter = 0;
 volatile uint8_t start_dht11= 0;
 volatile uint8_t read_dht11= 0;
+volatile uint8_t PRINT = 0;
 volatile uint8_t PRINT_send = 0;
 volatile uint8_t PRINT_done = 1;
 volatile uint8_t STOP = 0;
@@ -39,34 +65,29 @@ volatile uint8_t tx_index = 0;
 int main(void)
 {	
 	msg = log_msg;
-	uint8_t intRH = 0;
-	uint8_t intT = 0;
 	
-	uint8_t seconds = 0x00;
-	uint8_t minutes = (5 << 4) + 8;
-	uint8_t hours = (1 << 4) + 5;
-	
-	uint8_t day = (1 << 4) + 0;
-	uint8_t month = (0 << 4) + 6;
-	uint8_t year = (2 << 4) + 4;
+	uint8_t hum = 0;
+	uint8_t temp = 0;
+	Time time_var = {bin_to_bcd(INITIAL_HOURS), bin_to_bcd(INITIAL_MINUTES), bin_to_bcd(INITIAL_SECONDS)};
+	Date date = {bin_to_bcd(INITIAL_YEAR), bin_to_bcd(INITIAL_MONTH), bin_to_bcd(INITIAL_DAY)};
 	
 	TWI_Init();
 	SerialPort_Init(BR9600); 			// Inicializo formato 8N1 y BAUDRATE = 9600bps
 	SerialPort_TX_Enable();				// Activo el Transmisor del Puerto Serie
 	SerialPort_RX_Enable();				// Activo el Receptor del Puerto Serie
-	SerialPort_RX_Interrupt_Enable();	// Activo Interrupción de recepcion.
+	SerialPort_RX_Interrupt_Enable();	// Activo Interrupción de recepcion
 	DHT11_init();
 	
 	TWI_Start();
 	TWI_WriteAddress(DS3232_ADDRESS << 1);  // Dirección + bit de escritura (0)
 	TWI_WriteByte(0x00);  // Dirección del registro de segundosuint8_t seconds = TWI_ReadByte_ACK();
-	TWI_WriteByte(seconds);
-	TWI_WriteByte(minutes);
-	TWI_WriteByte(hours);
+	TWI_WriteByte(time_var.seconds);
+	TWI_WriteByte(time_var.minutes);
+	TWI_WriteByte(time_var.hours);
 	TWI_WriteByte(0);
-	TWI_WriteByte(day);
-	TWI_WriteByte(month);
-	TWI_WriteByte(year);
+	TWI_WriteByte(date.day);
+	TWI_WriteByte(date.month);
+	TWI_WriteByte(date.year);
 	TWI_Stop();
 	
 	TIMER0_init();						// Activo temporizacion para la lectura del sensor
@@ -91,7 +112,6 @@ int main(void)
 			{				
 				read_dht11 = 0;
 				if(!STOP){
-					// Leer el registro de segundos del DS3232 (dirección 0x00)
 					TWI_Start();
 					TWI_WriteAddress(DS3232_ADDRESS << 1);  // Dirección + bit de escritura (0)
 					TWI_WriteByte(0x00);  // Dirección del registro de segundosuint8_t seconds = TWI_ReadByte_ACK();
@@ -99,51 +119,53 @@ int main(void)
 					
 					TWI_Start();
 					TWI_WriteAddress((DS3232_ADDRESS << 1) | 1);  // Dirección + bit de lectura (1)
-					seconds = TWI_ReadByte_ACK();
-					minutes = TWI_ReadByte_ACK();
-					hours = TWI_ReadByte_ACK();
+					time_var.seconds = TWI_ReadByte_ACK();
+					time_var.minutes = TWI_ReadByte_ACK();
+					time_var.hours = TWI_ReadByte_ACK();
 					TWI_ReadByte_ACK();
-					day = TWI_ReadByte_ACK();
-					month = TWI_ReadByte_ACK();
-					year = TWI_ReadByte_NACK();
+					date.day = TWI_ReadByte_ACK();
+					date.month = TWI_ReadByte_ACK();
+					date.year = TWI_ReadByte_NACK();
 					TWI_Stop();
 					
-					seconds = (seconds >> 4) * 10 + (seconds & 0x0F);
-					minutes = (minutes >> 4) * 10 + (minutes & 0x0F);
-					hours = (hours >> 4) * 10 + (hours & 0x0F);
-					day = (day >> 4) * 10 + (day & 0x0F);
-					month = (month >> 4) * 10 + (month & 0x0F);
-					year = (year >> 4) * 10 + (year & 0x0F);
+					time_var.hours = bcd_to_bin(time_var.hours);
+					time_var.minutes = bcd_to_bin(time_var.minutes);
+					time_var.seconds = bcd_to_bin(time_var.seconds);
+					
+					date.day = bcd_to_bin(date.day);
+					date.month = bcd_to_bin(date.month);
+					date.year = bcd_to_bin(date.year);
 
-					intRH = DHT11_data[0];
-					intT = DHT11_data[2];
+					hum = DHT11_data[0];
+					temp = DHT11_data[2];
 					
-					log_msg[6] = '0' + intT / 10;
-					log_msg[7] = '0' + intT % 10;
-					log_msg[17] = '0' + intRH / 10;
-					log_msg[18] = '0' + intRH % 10;
-					
-					log_msg[43] = '0' + hours / 10;
-					log_msg[44] = '0' + hours % 10;
-					log_msg[46] = '0' + minutes / 10;
-					log_msg[47] = '0' + minutes % 10;
-					log_msg[49] = '0' + seconds / 10;
-					log_msg[50] = '0' + seconds % 10;
-					
-					log_msg[28] = '0' +  day / 10;
-					log_msg[29] = '0' +  day % 10;
-
-					log_msg[31] = '0' + month / 10;
-					log_msg[32] = '0' + month % 10;
-
-					log_msg[34] = '0' + year / 10;
-					log_msg[35] = '0' + year % 10;
-					
-					SerialPort_TX_Interrupt_Enable();	
+					sprintf(log_msg, "TEMP: %u °C HUM: %u%% FECHA: %02u/%02u/%02u HORA: %02u:%02u:%02u\r\n", temp, hum, date.day, date.month, date.year, time_var.hours, time_var.minutes, time_var.seconds);
+					SerialPort_TX_Interrupt_Enable();
+					//PRINT = 1;
+					//msg = log_msg;
 				}
 			}
 		}
+		//if(PRINT)
+		//{
+			//PRINT = 0;
+			//SerialPort_TX_Interrupt_Enable();
+		//}
     }
+}
+
+/********************************************************
+FUNCIÓN PARA CONVERTIR UN VALOR BINARIO A BCD
+********************************************************/
+uint8_t bin_to_bcd(uint8_t val) {
+	return ((val / 10) << 4) | (val % 10);
+}
+
+/********************************************************
+FUNCIÓN PARA CONVERTIR UN VALOR BCD A BINARIO
+********************************************************/
+uint8_t bcd_to_bin(uint8_t val) {
+	return ((val >> 4) * 10) + (val & 0x0F);
 }
 
 /********************************************************
@@ -177,6 +199,15 @@ ISR(USART_RX_vect)
 	if(RX_Buffer == 's' || RX_Buffer ==  'S')
 	{
 		STOP = !STOP;
+		//if(STOP)
+		//{
+			//msg = stop_msg;	
+		//}
+		//else
+		//{
+			//msg = start_msg;	
+		//}
+		//PRINT = 1;
 	}
 }
 
