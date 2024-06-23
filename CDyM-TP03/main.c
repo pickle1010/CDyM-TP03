@@ -20,6 +20,7 @@ void TWI_Stop(void);
 void TIMER0_init();
 uint8_t bin_to_bcd(uint8_t);
 uint8_t bcd_to_bin(uint8_t);
+void MAIN_init();
 
 #define DS3232_ADDRESS 0x68  // Dirección I2C del DS3232
 #define BR9600 (0x67)	// 0x67=103 configura BAUDRATE=9600@16MHz
@@ -51,6 +52,11 @@ char log_msg[] = "TEMP: __ °C HUM: __% FECHA: __/__/__ HORA: __:__:__\r\n";
 char stop_msg[] = "Transmision interrumpida\r\n";
 char start_msg[] = "Transmision reanudada\r\n";
 
+uint8_t temp;
+uint8_t hum;
+Time time_var;
+Date date;
+
 volatile uint16_t counter = 0;
 volatile uint8_t start_dht11= 0;
 volatile uint8_t read_dht11= 0;
@@ -64,35 +70,7 @@ volatile uint8_t tx_index = 0;
 
 int main(void)
 {	
-	msg = log_msg;
-	
-	uint8_t hum = 0;
-	uint8_t temp = 0;
-	Time time_var = {bin_to_bcd(INITIAL_HOURS), bin_to_bcd(INITIAL_MINUTES), bin_to_bcd(INITIAL_SECONDS)};
-	Date date = {bin_to_bcd(INITIAL_YEAR), bin_to_bcd(INITIAL_MONTH), bin_to_bcd(INITIAL_DAY)};
-	
-	TWI_Init();
-	SerialPort_Init(BR9600); 			// Inicializo formato 8N1 y BAUDRATE = 9600bps
-	SerialPort_TX_Enable();				// Activo el Transmisor del Puerto Serie
-	SerialPort_RX_Enable();				// Activo el Receptor del Puerto Serie
-	SerialPort_RX_Interrupt_Enable();	// Activo Interrupción de recepcion
-	DHT11_init();
-	
-	TWI_Start();
-	TWI_WriteAddress(DS3232_ADDRESS << 1);  // Dirección + bit de escritura (0)
-	TWI_WriteByte(0x00);  // Dirección del registro de segundosuint8_t seconds = TWI_ReadByte_ACK();
-	TWI_WriteByte(time_var.seconds);
-	TWI_WriteByte(time_var.minutes);
-	TWI_WriteByte(time_var.hours);
-	TWI_WriteByte(0);
-	TWI_WriteByte(date.day);
-	TWI_WriteByte(date.month);
-	TWI_WriteByte(date.year);
-	TWI_Stop();
-	
-	TIMER0_init();						// Activo temporizacion para la lectura del sensor
-	sei();								// Activo la mascara global de interrupciones (Bit I del SREG en 1)
-	
+	MAIN_init();
 	
     while (1)
     {
@@ -152,6 +130,42 @@ int main(void)
 			//SerialPort_TX_Interrupt_Enable();
 		//}
     }
+}
+
+void MAIN_init(){
+	msg = log_msg;
+	
+	hum = 0;
+	temp = 0;
+	time_var.hours = bin_to_bcd(INITIAL_HOURS);
+	time_var.minutes = bin_to_bcd(INITIAL_MINUTES);
+	time_var.seconds = bin_to_bcd(INITIAL_SECONDS);
+	
+	date.year = bin_to_bcd(INITIAL_YEAR);
+	date.month = bin_to_bcd(INITIAL_MONTH); 
+	date.day = bin_to_bcd(INITIAL_DAY);
+	
+	TWI_Init();
+	SerialPort_Init(BR9600); 			// Inicializo formato 8N1 y BAUDRATE = 9600bps
+	SerialPort_TX_Enable();				// Activo el Transmisor del Puerto Serie
+	SerialPort_RX_Enable();				// Activo el Receptor del Puerto Serie
+	SerialPort_RX_Interrupt_Enable();	// Activo Interrupción de recepcion
+	DHT11_init();
+	
+	TWI_Start();
+	TWI_WriteAddress(DS3232_ADDRESS << 1);  // Dirección + bit de escritura (0)
+	TWI_WriteByte(0x00);  // Dirección del registro de segundosuint8_t seconds = TWI_ReadByte_ACK();
+	TWI_WriteByte(time_var.seconds);
+	TWI_WriteByte(time_var.minutes);
+	TWI_WriteByte(time_var.hours);
+	TWI_WriteByte(0);
+	TWI_WriteByte(date.day);
+	TWI_WriteByte(date.month);
+	TWI_WriteByte(date.year);
+	TWI_Stop();
+	
+	TIMER0_init();						// Activo temporizacion para la lectura del sensor
+	sei();								// Activo la mascara global de interrupciones (Bit I del SREG en 1)
 }
 
 /********************************************************
