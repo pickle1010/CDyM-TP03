@@ -49,6 +49,13 @@ typedef struct
 
 char* msg;
 char* next_msg;
+
+char startup_msg[] = 
+"*   Sistema de Registro de Datos   *\r\n"
+"*  Temperatura y Humedad Relativa  *\r\n"
+"Desarrollado por Estanislao Carrer, Fernando Ramirez, Lisandro Martinez\r\n"
+"Sistema listo para operacion. Presione 's' o 'S' para detener o reanudar el envio de datos\r\n\r\n";
+
 char log_msg[] = "TEMP: __ °C HUM: __% FECHA: __/__/__ HORA: __:__:__\r\n";
 char stop_msg[] = "Transmision interrumpida. Presione 's' o 'S' para reanudarla\r\n";
 char start_msg[] = "Transmision reanudada\r\n";
@@ -61,7 +68,6 @@ Date date;
 volatile uint16_t counter = 0;
 volatile uint8_t start_dht11= 0;
 volatile uint8_t read_dht11= 0;
-volatile uint8_t PRINT = 0;
 volatile uint8_t PRINT_send = 0;
 volatile uint8_t PRINT_done = 1;
 volatile uint8_t STOP = 0;
@@ -119,7 +125,6 @@ int main(void)
 					temp = DHT11_data[2];
 					
 					sprintf(log_msg, "TEMP: %u °C HUM: %u%% FECHA: %02u/%02u/%02u HORA: %02u:%02u:%02u\r\n", temp, hum, date.day, date.month, date.year, time_var.hours, time_var.minutes, time_var.seconds);
-					//SerialPort_TX_Interrupt_Enable();
 					PRINT_send = 1;
 					next_msg = log_msg;
 				}
@@ -136,9 +141,7 @@ int main(void)
 }
 
 void MAIN_init()
-{
-	next_msg = log_msg;
-	
+{	
 	hum = 0;
 	temp = 0;
 	time_var.hours = bin_to_bcd(INITIAL_HOURS);
@@ -167,6 +170,9 @@ void MAIN_init()
 	TWI_WriteByte(date.month);
 	TWI_WriteByte(date.year);
 	TWI_Stop();
+	
+	next_msg = startup_msg;
+	PRINT_send = 1;
 	
 	TIMER0_init();						// Activo temporizacion para la lectura del sensor
 	sei();								// Activo la mascara global de interrupciones (Bit I del SREG en 1)
