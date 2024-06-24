@@ -1,5 +1,5 @@
-#ifndef _DHT11_H
-#define _DHT11_H
+#ifndef DHT11_H
+#define DHT11_H
 
 #define F_CPU 16000000
 #include <avr/io.h>
