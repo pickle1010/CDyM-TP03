@@ -18,18 +18,15 @@
 #include "rtc.h"
 #include "dht11.h"
 
-void make_command(uint8_t, uint8_t);
+void make_command(char[], char[]);
 void TIMER0_init();
 
-char t[]="Time: ";
-char da[]=" Date: ";
 char msg[64];
 
 rtc_t today;
 rtc_t set_date;
 
-//char stop_msg[] = "Transmision interrumpida";
-//char start_msg[] = "Transmision reanudada";
+
 
 volatile uint16_t counter = 0;
 volatile uint8_t start_dht11= 0;
@@ -44,9 +41,8 @@ volatile uint8_t tx_index = 0;
 
 int main(void)
 {
-	//msg = log_msg; mensaje final, habria que ver como agregarle los datos dht
-	uint8_t intRH = 0;
-	uint8_t intT = 0;
+	char intRH[2];
+	char intT[2];
 
 	
 	SerialPort_Init(BR9600); 			// Inicializo formato 8N1 y BAUDRATE = 9600bps
@@ -90,8 +86,10 @@ int main(void)
 			{
 				read_dht11 = 0;
 				if(!STOP){
-					intRH = DHT11_data[0];
-					intT = DHT11_data[2];
+					intRH[0] = DHT11_data[0];
+					intRH[1] = DHT11_data[1];
+					intT[0] = DHT11_data[2];
+					intT[1] = DHT11_data[3];
 					make_command(intT, intRH);
 					SerialPort_TX_Interrupt_Enable();
 				}
@@ -100,7 +98,7 @@ int main(void)
 	}
 }
 
-void make_command(uint8_t t, uint8_t h)
+void make_command(char t[2], char h[2])
 {
 	
 	ds3232_GetDateTime(&today);
@@ -124,7 +122,7 @@ void make_command(uint8_t t, uint8_t h)
 	itoa(bcd2dec(today.year), d_y, 10);  //year
 
 	
-	sprintf(msg,"TEMP: %u°C HUM: %u %% FECHA: %s/%s/%s HORA: %u:%u:%u \r\n", t, h, d_d, d_m, d_y, hore, mini, secu);
+	sprintf(msg,"TEMP: %s°C HUM: %s %% FECHA: %s/%s/%s HORA: %u:%u:%u \r\n", t, h, d_d, d_m, d_y, hore, mini, secu);
 	
 }
 
