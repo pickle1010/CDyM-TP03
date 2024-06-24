@@ -71,7 +71,7 @@ int main(void)
 			{
 				read_dht11 = 0;
 				if(!STOP){
-					DS3232_getDateTime(&rtc_info);
+					DS3231_getDateTime(&rtc_info);
 
 					hum = DHT11_data[0];
 					temp = DHT11_data[2];
@@ -104,7 +104,7 @@ void MAIN_init()
 	
 	DHT11_init();
 	
-	DS3232_init();
+	DS3231_init();
 	
 	rtc_info.sec = INITIAL_SECONDS;
 	rtc_info.min = INITIAL_MINUTES;
@@ -112,7 +112,7 @@ void MAIN_init()
 	rtc_info.date = INITIAL_DAY;
 	rtc_info.month = INITIAL_MONTH;
 	rtc_info.year = INITIAL_YEAR;
-	DS3232_setDateTime(&rtc_info);
+	DS3231_setDateTime(&rtc_info);
 	
 	next_msg = startup_msg;
 	PRINT_send = 1;
