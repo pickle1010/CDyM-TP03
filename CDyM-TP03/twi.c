@@ -16,29 +16,10 @@ void TWI_init(void)
   TWCR = (1 << TWEN);  // Habilitar TWI
 }/* TWI_init */
 
-void TWI_Start(void) {
+void TWI_start(void) {
 	TWCR = (1 << TWSTA) | (1 << TWEN) | (1 << TWINT);
 	while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete el inicio
-}
-
-uint8_t TWI_start(uint8_t addr) //se envia la direccion del esclavo
-{
-    uint8_t twst;
-	
-	TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN);
-	while(!(TWCR & (1<<TWINT)));                    // esperar hasta que se complete la transmision
-	
-	twst = TW_STATUS & 0xF8;                    // check valor del registro de estados TWI. Mascara de bits de prescaler.
-	if ( (twst != TW_START) && (twst != TW_REP_START)) return 1;
-	
-	TWDR = addr;                             // se envia la direccion del esclavo al dispositivo
-	TWCR = (1<<TWINT) | (1<<TWEN);
-	while(!(TWCR & (1<<TWINT)));            // Esperar hasta que la transmisión se complete y se reciba ACK/NACK
-	
-	twst = TW_STATUS & 0xF8;               // Leer y enmascarar el registro de estado TWI.
-	if ( (twst != TW_MT_SLA_ACK) && (twst != TW_MR_SLA_ACK) ) return 1;
-	return 0;
-}/* i2c_start */
+}/* TWI_start */
 
 void TWI_stop(void)
 {
@@ -46,7 +27,7 @@ void TWI_stop(void)
 	TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWSTO);
 	// esperar hasta que se ejecute la condición de parada y se libere el bus	
 	while (TWCR & (1 << TWSTO));
-}/* i2c_stop */
+}/* TWI_stop */
 
 /*************************************************************************
   Enviar un byte al dispositivo I2C
@@ -69,7 +50,7 @@ uint8_t TWI_write(uint8_t byte_data)
 	twst = TW_STATUS & 0xF8;
 	if( twst != TW_MT_DATA_ACK) return 1;
 	return 0;
-}/* i2c_write */
+}/* TWI_write */
 
 /*************************************************************************
  Leer un byte del dispositivo I2C, solicitar más datos del dispositivo
@@ -81,7 +62,7 @@ uint8_t TWI_readAck(void)
 	TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWEA);
 	while(!(TWCR & (1<<TWINT)));
     return TWDR;
-}/* i2c_readAck */
+}/* TWI_readAck */
 
 /*************************************************************************
  Lee un byte del dispositivo I2C, la lectura va seguida de una condición de stop
@@ -94,28 +75,4 @@ uint8_t TWI_readNack(void)
 	while(!(TWCR & (1<<TWINT)));
 	
     return TWDR;
-}/* i2c_readNak */
-
-//void TWI_WriteAddress(uint8_t address) {
-	//TWDR = address;
-	//TWCR = (1 << TWEN) | (1 << TWINT);
-	//while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete la transmisión
-//}
-
-//void TWI_WriteByte(uint8_t data) {
-	//TWDR = data;
-	//TWCR = (1 << TWEN) | (1 << TWINT);
-	//while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete la transmisión
-//}
-
-//uint8_t TWI_ReadByte_ACK(void) {
-	//TWCR = (1 << TWEN) | (1 << TWINT) | (1 << TWEA);  // Habilitar ACK
-	//while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete la recepción
-	//return TWDR;
-//}
-
-//uint8_t TWI_ReadByte_NACK(void) {
-	//TWCR = (1 << TWEN) | (1 << TWINT);  // Deshabilitar ACK
-	//while (!(TWCR & (1 << TWINT)));  // Esperar hasta que se complete la recepción
-	//return TWDR;
-//}
+}/* TWI_readNak */

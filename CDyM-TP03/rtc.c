@@ -3,8 +3,7 @@
 void DS3231_init(void)
 {
     TWI_init();		// Inicializa el modulo I2C.
-    //i2c_start(0x68);		// Inicia comunicacion I2C
-	TWI_Start();
+	TWI_start();
     TWI_write(DS3231_WriteMode_U8);		// Conectar a DS3231
     TWI_write(DS3231_REG_CONTROL);		// Seleccionar el ControlRegister de DS3231
     TWI_write(0x00);	// Escribe 0x00 al Control register para desactivar SQW-Out
@@ -24,8 +23,7 @@ void DS3231_setDateTime(rtc_t *rtc)
 	rtc->month = DS3231_bin2bcd(rtc->month);
 	rtc->year = DS3231_bin2bcd(rtc->year);
 	
-    //i2c_start(0x68);	// inicia comunicacion I2C
-	TWI_Start();
+	TWI_start();
     TWI_write(DS3231_WriteMode_U8);	// conectar a DS3231 enviando su ID al I2c Bus
     TWI_write(DS3231_REG_Seconds);	// Petición de dirección sec RAM a 00H
 
@@ -45,14 +43,12 @@ void DS3231_setDateTime(rtc_t *rtc)
 ****************************************************************************************************/
 void DS3231_getDateTime(rtc_t *rtc)
 {
-    //i2c_start(0x68);	// inicia comunicacion I2C
-	TWI_Start(); 
+	TWI_start(); 
     TWI_write(DS3231_WriteMode_U8);		// conecta a DS3231 enviando su id al I2c Bus
     TWI_write(DS3231_REG_Seconds);		// Solicitar dirección Sec RAM en 00H
     TWI_stop();		// Detener comunicación I2C después de seleccionar Registro Sec.
 
-    //i2c_start(0x68);	// inicia comunicacion I2C
-	TWI_Start();
+	TWI_start();
     TWI_write(DS3231_ReadMode_U8);	// conectar al DS3231(Read mode)enviando su ID
 
     rtc->sec = TWI_readAck();		// leer second y retornar Positive ACK
